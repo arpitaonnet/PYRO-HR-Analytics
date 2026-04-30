@@ -9,6 +9,4 @@ Can_See_HR_Page = IF(CALCULATE(COUNTROWS(RLS_SecurityMapping), RLS_SecurityMappi
 
 Can_See_CEO_Page = IF(CALCULATE(COUNTROWS(RLS_SecurityMapping), RLS_SecurityMapping[Email] = USERPRINCIPALNAME(), RLS_SecurityMapping[PBI_Role] = "Role_CEO_CFO") > 0, 1, 0)
 
-Block_HR = IF([Can_See_HR_Page] = 1, 0, 1)
 
-Block_CEO = IF([Can_See_CEO_Page] = 1, 0, 1)
