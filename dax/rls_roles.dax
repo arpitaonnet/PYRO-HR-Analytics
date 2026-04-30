@@ -1,0 +1,11 @@
+-- PYRO HR Analytics — RLS Role Expressions
+-- Apply in: Modeling → Manage Roles → Table: Employees
+
+-- Role_CEO_CFO: Full access
+TRUE()
+
+-- Role_HR: Own HR row + all Employee rows
+[Email] = USERPRINCIPALNAME() || [Role] = "Employee"
+
+-- Role_Employee: Own row only
+[Email] = USERPRINCIPALNAME()

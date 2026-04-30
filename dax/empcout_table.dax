@@ -1,0 +1,18 @@
+-- PYRO HR Analytics — Disconnected Table (bypasses RLS)
+-- Create via: Modeling → New Table
+
+EmpCount =
+SUMMARIZE(
+    ALL(Employees),
+    Employees[EmployeeID],
+    Employees[FullName],
+    Employees[Status],
+    Employees[Salary],
+    Employees[Department],
+    Employees[Role],
+    Employees[JobTitle]
+)
+
+-- Refresh timestamp table
+RefreshTime =
+DATATABLE("Last Refresh", DATETIME, {{NOW()}})

@@ -1,0 +1,24 @@
+-- PYRO HR Analytics — Employee Tab Measures
+My Name = CALCULATE(SELECTEDVALUE(Employees[FullName]), Employees[Email] = USERPRINCIPALNAME())
+
+My Department = CALCULATE(SELECTEDVALUE(Employees[Department]), Employees[Email] = USERPRINCIPALNAME())
+
+My Job Title = CALCULATE(SELECTEDVALUE(Employees[JobTitle]), Employees[Email] = USERPRINCIPALNAME())
+
+My Salary = CALCULATE(SUM(Employees[Salary]), Employees[Email] = USERPRINCIPALNAME())
+
+My Status = CALCULATE(SELECTEDVALUE(Employees[Status]), Employees[Email] = USERPRINCIPALNAME())
+
+My Manager =
+VAR emp = CALCULATETABLE(Employees, Employees[Email] = USERPRINCIPALNAME())
+VAR mgrID = MAXX(emp, Employees[ManagerID])
+VAR mgrName = CALCULATE(SELECTEDVALUE(Employees[FullName]), Employees[EmployeeID] = mgrID)
+RETURN IF(ISBLANK(mgrName), "Board", mgrName)
+
+Current Role =
+SWITCH(TRUE(),
+    [Is_CEO_CFO] = 1, "CEO / CFO View",
+    [Is_HR] = 1, "HR View",
+    [Is_Employee] = 1, "Employee View",
+    "Unknown"
+)

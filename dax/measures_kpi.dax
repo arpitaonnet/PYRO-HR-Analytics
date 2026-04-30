@@ -1,0 +1,12 @@
+-- PYRO HR Analytics — KPI Measures (use EmpCount to bypass RLS)
+Total Headcount = COUNTROWS(EmpCount)
+
+Active Employees = CALCULATE(COUNTROWS(EmpCount), EmpCount[Status] = "Active")
+
+Avg Salary = AVERAGE(EmpCount[Salary])
+
+Total Salary Budget = SUM(EmpCount[Salary])
+
+Total Promotions = COUNTROWS(Promotions)
+
+Active Projects = CALCULATE(COUNTROWS(Projects), Projects[Status] = "Active")
