@@ -347,7 +347,7 @@ Open an incognito browser and log in as each test user to verify RLS behaviour.
 - Power BI App with audience-based access control
 - Custom theme development (JSON)
 - UI/UX design — navigation cards, conditional visibility, role-aware layout
-- Microsoft Fabric awareness and DP-600 certification
+
 
 ---
 
