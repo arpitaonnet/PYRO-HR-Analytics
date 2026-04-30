@@ -13,6 +13,3 @@ SUMMARIZE(
     Employees[JobTitle]
 )
 
--- Refresh timestamp table
-RefreshTime =
-DATATABLE("Last Refresh", DATETIME, {{NOW()}})
