@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PYRO HR Analytics</title>
+ <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: sans-serif; background: #f0f2f5; }
+    header { background: #1a2b4a; color: white; padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; }
+    header strong { font-size: 20px; letter-spacing: 1px; }
+    header span { font-size: 13px; opacity: 0.6; margin-left: auto; }
+    .controls { padding: 1rem 2rem; display: flex; align-items: center; gap: 12px; background: white; border-bottom: 1px solid #e0e0e0; }
+    .controls label { font-size: 13px; color: #666; }
+    select { padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-size: 13px; }
+    button { padding: 8px 20px; border-radius: 6px; background: #1a2b4a; color: white; border: none; font-size: 13px; cursor: pointer; }
+    button:hover { background: #243d6b; }
+    #status { font-size: 12px; color: #888; margin-left: auto; }
+    #embed-container { margin: 1.5rem 2rem; height: 80vh; border-radius: 10px; overflow: hidden; background: white; border: 1px solid #ddd; }
+  </style>
+</head>
+<body>
+
+<header>
+  <strong>PYRO</strong>
+  <span>HR Analytics Platform — Embedded Demo</span>
+</header>
+
+<div class="controls">
+  <label>View as:</label>
+  <select id="role-select">
+    <option value="executive|alice.johnson@pyrodemo.onmicrosoft.com">Alice Johnson — CEO</option>
+    <option value="executive|robert.kim@pyrodemo.onmicrosoft.com">Robert Kim — CFO</option>
+    <option value="hr|sarah.patel@pyrodemo.onmicrosoft.com">Sarah Patel — HR</option>
+    <option value="employee|maria.garcia@pyrodemo.onmicrosoft.com">Maria Garcia — Employee</option>
+    <option value="employee|lisa.wong@pyrodemo.onmicrosoft.com">Lisa Wong — Employee</option>
+  </select>
+  <button id="load-btn">Load Report</button>
+  <span id="status">Select a user and click Load Report</span>
+</div>
+
+<div id="embed-container"></div>
+
+<!-- script is at bottom so DOM is ready -->
+<script src="https://cdn.jsdelivr.net/npm/powerbi-client@2/dist/powerbi.min.js"></script>
+<script>
+  let report = null;
+
+  document.getElementById('load-btn').addEventListener('click', async function() {
+    const val = document.getElementById('role-select').value;
+    const [role, username] = val.split('|');
+    const status = document.getElementById('status');
+
+    status.textContent = 'Fetching embed token...';
+
+    try {
+      const res = await fetch('/api/embed-token?role=' + role + '&username=' + encodeURIComponent(username));
+      const data = await res.json();
+
+      if (data.error) {
+        status.textContent = 'Error: ' + data.error;
+        return;
+      }
+
+      const config = {
+        type: 'report',
+        tokenType: 1, 
+        accessToken: data.token,
+        embedUrl: data.embedUrl,
+        id: data.reportId,
+        settings: {
+          navContentPaneEnabled: false,
+          filterPaneEnabled: false
+        }
+      };
+
+      const container = document.getElementById('embed-container');
+      if (report) { powerbi.reset(container); }
+      report = powerbi.embed(container, config);
+
+      report.on('loaded', function() {
+        status.textContent = 'Viewing as: ' + username;
+      });
+
+      report.on('error', function(e) {
+        status.textContent = 'Embed error: ' + e.detail.message;
+        console.error(e.detail);
+      });
+
+    } catch(err) {
+      status.textContent = 'Error: ' + err.message;
+      console.error(err);
+    }
+  });
+</script>
+
+</body>
+</html>

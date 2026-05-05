@@ -1,0 +1,4 @@
+.vscode/
+embed/.env
+__pycache__/
+*.pyc
