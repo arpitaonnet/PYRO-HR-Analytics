@@ -420,5 +420,4 @@ This project is for portfolio and educational purposes.
 ## Author
 
 **Arpita Ghosh**
-Power BI Developer · PL-300 · DP-600
 [LinkedIn](https://linkedin.com/in/arpitaonnet) · [GitHub](https://github.com/arpitaonnet)
