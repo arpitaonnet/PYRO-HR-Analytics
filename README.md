@@ -12,17 +12,23 @@ A production-aligned Power BI HR Analytics platform implementing **Dynamic Row L
 
 ## Screenshots
 
-### Landing Page
-![Landing](screenshots/01_landing.png)
 
 ### CEO / CFO View — Full access, all KPIs
-![CEO View](screenshots/02_ceo_view.png)
+![CEO Login View](screenshots/6.ExecutiveLoginview.JPG)
+![CEO Detail View](screenshots/7.ExecutiveDetailpage.JPG)
+![CEO in HR View](screenshots/8.ExecutiveinHRpage.JPG)
+![CEO in Employee View](screenshots/9.ExecutiveinEmployeepage.JPG)
 
-### HR View — Team directory + org-wide metrics
-![HR View](screenshots/03_hr_view.png)
+
+### HR View — Team directory + org-wide metrics + No Access in Executive view
+![HR Login View](screenshots/3.HRLoginview.JPG)
+![HR Detail View](screenshots/4.HRDetailspage.JPG)
+![HR in Employee View](screenshots/5.HRinEmployeepage.JPG)
 
 ### Employee View — Own profile and projects only
-![Employee View](screenshots/04_employee_view.png)
+![Employee View](screenshots/1.Employeeloginview.JPG)
+![Employee View](screenshots/2.Employeedetailspage.JPG)
+
 
 ---
 
