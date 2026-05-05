@@ -10,7 +10,19 @@
 
 A production-aligned Power BI HR Analytics platform implementing **Dynamic Row Level Security (RLS)** and **enterprise embed architecture**. Built end-to-end — from Microsoft Entra ID group provisioning through to a Flask-backed embedded report with role-enforced token generation.
 
-> 🎥 **[Watch the demo walkthrough](#)** — shows all 3 roles switching live in the embedded app
+## Screenshots
+
+### Landing Page
+![Landing](screenshots/01_landing.png)
+
+### CEO / CFO View — Full access, all KPIs
+![CEO View](screenshots/02_ceo_view.png)
+
+### HR View — Team directory + org-wide metrics
+![HR View](screenshots/03_hr_view.png)
+
+### Employee View — Own profile and projects only
+![Employee View](screenshots/04_employee_view.png)
 
 ---
 
