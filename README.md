@@ -1,23 +1,42 @@
-# PYRO HR Analytics — Power BI RLS Portfolio Project
+# PYRO HR Analytics — Power BI RLS + Embedded Analytics
 
 ![Power BI](https://img.shields.io/badge/Power%20BI-F2C811?style=for-the-badge&logo=powerbi&logoColor=black)
 ![Microsoft Entra ID](https://img.shields.io/badge/Microsoft%20Entra%20ID-0078D4?style=for-the-badge&logo=microsoft&logoColor=white)
 ![Microsoft Fabric](https://img.shields.io/badge/Microsoft%20Fabric-0078D4?style=for-the-badge&logo=microsoft&logoColor=white)
 ![DAX](https://img.shields.io/badge/DAX-FF6B35?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white)
+![Azure AD](https://img.shields.io/badge/Azure%20AD-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)
 
-A production-grade Power BI report implementing **Dynamic Row Level Security (RLS)** for an HR Analytics platform. Built end-to-end — from Microsoft Entra ID group provisioning through to a published Power BI App with role-based page navigation and org-wide KPI measures.
+A production-aligned Power BI HR Analytics platform implementing **Dynamic Row Level Security (RLS)** and **enterprise embed architecture**. Built end-to-end — from Microsoft Entra ID group provisioning through to a Flask-backed embedded report with role-enforced token generation.
+
+> 🎥 **[Watch the demo walkthrough](#)** — shows all 3 roles switching live in the embedded app
+
+---
+
+## What This Project Demonstrates
+
+| Capability | Implementation |
+|---|---|
+| Dynamic RLS | `USERPRINCIPALNAME()` with 3 role tiers |
+| RLS filter bleeding fix | Disconnected calculated table pattern |
+| Enterprise embed | Flask backend + powerbi-client SDK |
+| Token-based security | Server-side GenerateToken with RLS identity |
+| Role-based navigation | DAX measures controlling page visibility |
+| Identity management | Microsoft Entra ID security groups |
+| Production documentation | Service principal upgrade path documented |
 
 ---
 
 ## Project Overview
 
-**PYRO** (HR Analytics Platform) demonstrates how to implement enterprise-grade RLS in Power BI using real Microsoft Entra ID security groups, dynamic DAX measures, and a published Power BI App with audience-based access control.
+**PYRO** (HR Analytics Platform) demonstrates how to implement enterprise-grade RLS in Power BI using Microsoft Entra ID security groups, dynamic DAX measures, and a Flask-backed embedded report with audience-based access control.
 
 | Dimension | Detail |
-|-----------|--------|
-| Tool | Power BI Desktop + Power BI Service |
+|---|---|
+| Tool | Power BI Desktop + Power BI Service (Fabric) |
 | Identity | Microsoft Entra ID (pyrodemo tenant) |
-| License | Microsoft 365 Business Standard (Power BI Pro) |
+| Embed backend | Python Flask + Azure AD OAuth |
 | Data Source | Excel (.xlsx) — 4 tables |
 | RLS Type | Dynamic RLS using USERPRINCIPALNAME() |
 | Roles | 3 roles — CEO/CFO, HR, Employee |
@@ -27,33 +46,63 @@ A production-grade Power BI report implementing **Dynamic Row Level Security (RL
 
 ## Architecture
 
+### Full System Architecture
+
 ```
-┌─────────────────────────────────────────────────────┐
-│            IDENTITY LAYER — Microsoft Entra ID       │
-│  PBI_Executives  │  PBI_HR_Team  │  PBI_Employees   │
-└──────────────────────────┬──────────────────────────┘
-                           │ UPN sync
-┌──────────────────────────▼──────────────────────────┐
-│              DATA LAYER — Power BI Model             │
-│  Employees (dim) → Projects (fact)                  │
-│  Employees (dim) → Promotions (fact)                │
-│  EmpCount (disconnected — bypasses RLS)             │
-└──────────────────────────┬──────────────────────────┘
-                           │ RLS roles
-┌──────────────────────────▼──────────────────────────┐
-│           SECURITY LAYER — Row Level Security        │
-│  Role_CEO_CFO → TRUE()                              │
-│  Role_HR      → Email=UPN OR Role="Employee"        │
-│  Role_Employee → Email=UPN                          │
-└──────────────────────────┬──────────────────────────┘
-                           │ filtered data
-┌──────────────────────────▼──────────────────────────┐
-│        PRESENTATION LAYER — PYRO App                 │
-│  Home page → dynamic nav (role-based visibility)    │
-│  Employee page → profile cards + projects           │
-│  HR page → team directory + salary charts           │
-│  CEO/CFO page → KPIs + org analytics               │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                  IDENTITY LAYER — Azure AD                   │
+│   PYRO-Embed-App (Service Principal)                        │
+│   PBI_Executives │ PBI_HR_Team │ PBI_Employees              │
+└────────────────────────┬────────────────────────────────────┘
+                         │ OAuth token
+┌────────────────────────▼────────────────────────────────────┐
+│                  BACKEND LAYER — Flask                       │
+│   get_aad_token()  →  get_embed_token(username, role)       │
+│   RLS identity embedded in GenerateToken request            │
+│   /api/embed-token endpoint                                  │
+└────────────────────────┬────────────────────────────────────┘
+                         │ embed token
+┌────────────────────────▼────────────────────────────────────┐
+│              PRESENTATION LAYER — Browser                    │
+│   powerbi-client SDK  →  powerbi.embed(config)              │
+│   Role switcher UI  →  tokenExpired handler                 │
+└────────────────────────┬────────────────────────────────────┘
+                         │ filtered data
+┌────────────────────────▼────────────────────────────────────┐
+│                DATA LAYER — Power BI Model                   │
+│   Employees (dim) → Projects (fact)                         │
+│   Employees (dim) → Promotions (fact)                       │
+│   EmpCount (disconnected — bypasses RLS)                    │
+└────────────────────────┬────────────────────────────────────┘
+                         │ RLS roles
+┌────────────────────────▼────────────────────────────────────┐
+│              SECURITY LAYER — Row Level Security             │
+│   Role_Executives → [Email]=UPN || 1=1 (full access)       │
+│   Role_HR         → Email=UPN OR Role="Employee"            │
+│   Role_Employee   → Email=UPN (own row only)                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Embed Token Flow
+
+```
+Browser                  Flask Backend              Azure AD / Power BI
+   │                          │                           │
+   │── click Load Report ────►│                           │
+   │                          │── POST /oauth2/token ────►│
+   │                          │◄─ AAD access token ───────│
+   │                          │                           │
+   │                          │── GET /reports/{id} ─────►│
+   │                          │◄─ datasetId ──────────────│
+   │                          │                           │
+   │                          │── POST GenerateToken ────►│
+   │                          │   { username, role }      │
+   │                          │◄─ embed token ────────────│
+   │                          │                           │
+   │◄─ { token, embedUrl } ───│                           │
+   │                          │                           │
+   │── powerbi.embed() ───────────────────────────────────►│
+   │◄─ report iframe ─────────────────────────────────────│
 ```
 
 ---
@@ -64,30 +113,40 @@ A production-grade Power BI report implementing **Dynamic Row Level Security (RL
 PYRO-HR-Analytics/
 │
 ├── README.md                          ← This file
+├── PRODUCTION.md                      ← Production upgrade guide
+├── .gitignore
+│
+├── embed/                             ← Enterprise embed layer
+│   ├── app.py                        ← Flask backend (token service)
+│   ├── index.html                    ← Frontend (powerbi-client SDK)
+│   ├── requirements.txt              ← Python dependencies
+│   ├── .env.example                  ← Environment template
+│   ├── .gitignore                    ← Prevents .env from being committed
+│   └── PRODUCTION.md                 ← Service principal upgrade path
 │
 ├── data/
 │   ├── PYRO_Clean.xlsx               ← Main data source (4 sheets)
-│   └── PYRO_RLS_SampleData_RealWorld.xlsx  ← Extended reference data
+│   └── PYRO_RLS_SampleData_RealWorld.xlsx
 │
 ├── report/
 │   └── PYRO_RLS.pbix                 ← Power BI Desktop report file
 │
 ├── assets/
-│   ├── PYRO_Logo_Color.png           ← Logo for light backgrounds
-│   ├── PYRO_Logo_Transparent.png     ← Logo for dark header
-│   ├── PYRO_Logo_White.png           ← White version
-│   ├── PYRO_Logo.svg                 ← Vector source
-│   ├── icon_employee.png             ← Navigation card icon
-│   ├── icon_hr.png                   ← Navigation card icon
-│   ├── icon_executive.png            ← Navigation card icon
-│   └── icon_lock.png                 ← Locked state icon
+│   ├── PYRO_Logo_Color.png
+│   ├── PYRO_Logo_Transparent.png
+│   ├── PYRO_Logo_White.png
+│   ├── PYRO_Logo.svg
+│   ├── icon_employee.png
+│   ├── icon_hr.png
+│   ├── icon_executive.png
+│   └── icon_lock.png
 │
 ├── theme/
-│   └── PYRO_Theme.json               ← Power BI custom theme file
+│   └── PYRO_Theme.json               ← Power BI custom theme
 │
 ├── docs/
 │   ├── RLS_Issue_Solution.docx       ← RLS filter bleeding issue & fix
-│   └── PYRO_RLS_Implementation_Guide.docx  ← Full implementation guide
+│   └── PYRO_RLS_Implementation_Guide.docx
 │
 └── dax/
     ├── rls_roles.dax                 ← All 3 RLS role expressions
@@ -99,12 +158,61 @@ PYRO-HR-Analytics/
 
 ---
 
+## Embed Layer
+
+### How it works
+
+The `/embed` folder contains a production-aligned Power BI embedding implementation. A Flask backend generates embed tokens server-side with RLS identity — the browser never controls which role is assigned.
+
+```python
+# Backend decides the role — never the frontend
+role_map = {
+    "executive": "Role_Executives",
+    "hr":        "Role_HR",
+    "employee":  "Role_Employee"
+}
+
+# RLS identity embedded in the token request
+{
+    "accessLevel": "View",
+    "identities": [{
+        "username": username,    # who is viewing
+        "roles":    [rls_role],  # which RLS role
+        "datasets": [dataset_id] # which dataset
+    }]
+}
+```
+
+### Run locally
+
+```bash
+cd embed
+pip install -r requirements.txt
+cp .env.example .env        # fill in your Azure AD + Power BI values
+python app.py
+# open http://localhost:5000
+```
+
+### Current vs production auth pattern
+
+| | Current (Master User) | Production (Service Principal) |
+|---|---|---|
+| Auth flow | ROPC — username + password | Client credentials — no password |
+| MFA | Must be disabled | Always enabled |
+| Secret storage | `.env` file | Azure Key Vault |
+| Licence needed | Power BI Standard | Power BI PPU or AAD Premium P1 |
+| Code change | `grant_type: password` | `grant_type: client_credentials` |
+
+See [`embed/PRODUCTION.md`](embed/PRODUCTION.md) for the complete upgrade path.
+
+---
+
 ## Data Model
 
 ### Tables
 
 | Table | Type | Rows | Purpose |
-|-------|------|------|---------|
+|---|---|---|---|
 | `Employees` | Dimension | 10 | Core employee data — RLS applied here |
 | `Projects` | Fact | 10 | Project allocations linked by EmployeeID |
 | `Promotions` | Fact | 5 | Promotion records linked by EmployeeID |
@@ -122,10 +230,6 @@ Projects     ──(Many)──► Employees ◄──(Many)── Promotions
                     RLS_SecurityMapping
 ```
 
-### Star Schema Design
-
-The model follows star schema principles with `Employees` as the central dimension table. All relationships use single cross-filter direction except `RLS_SecurityMapping` which uses bidirectional to support dynamic RLS filtering.
-
 ---
 
 ## RLS Implementation
@@ -133,8 +237,8 @@ The model follows star schema principles with `Employees` as the central dimensi
 ### Roles
 
 ```dax
--- Role_CEO_CFO (filter on Employees table)
-TRUE()
+-- Role_Executives (filter on Employees table)
+[Email] = USERPRINCIPALNAME() || 1 = 1
 
 -- Role_HR (filter on Employees table)
 [Email] = USERPRINCIPALNAME()
@@ -147,32 +251,10 @@ TRUE()
 ### Security Group Mapping
 
 | Entra ID Group | Power BI Role | Access |
-|----------------|---------------|--------|
-| PBI_Executives | Role_CEO_CFO | All rows, all pages |
-| PBI_HR_Team | Role_HR | Own row + Employee rows |
+|---|---|---|
+| PBI_Executives | Role_Executives | All rows, all pages |
+| PBI_HR_Team | Role_HR | Own row + all Employee rows |
 | PBI_Employees | Role_Employee | Own row only |
-
-### Dynamic Navigation Measures
-
-```dax
-Is_CEO_CFO =
-IF(
-    CALCULATE(
-        COUNTROWS(RLS_SecurityMapping),
-        RLS_SecurityMapping[Email] = USERPRINCIPALNAME(),
-        RLS_SecurityMapping[PBI_Role] = "Role_CEO_CFO"
-    ) > 0, 1, 0
-)
-
-Can_See_HR_Page =
-IF(
-    CALCULATE(
-        COUNTROWS(RLS_SecurityMapping),
-        RLS_SecurityMapping[Email] = USERPRINCIPALNAME(),
-        RLS_SecurityMapping[PBI_Role] IN {"Role_HR", "Role_CEO_CFO"}
-    ) > 0, 1, 0
-)
-```
 
 ---
 
@@ -180,13 +262,15 @@ IF(
 
 ### Problem
 
-When `Role_HR` is applied, the RLS filter on the `Employees` table reduces it to 6 rows. All DAX measures referencing `Employees` then calculated on 6 rows — causing KPI cards to show wrong org-wide totals.
+When `Role_HR` is applied, the RLS filter reduces `Employees` to 6 rows. All DAX measures then calculate on 6 rows — causing KPI cards to show wrong org-wide totals.
 
-```
-Total Headcount = COUNTROWS(Employees)  ← returns 6, not 10 for HR role
-```
+```dax
+-- WRONG — returns 6 for HR role, not 10
+Total Headcount = COUNTROWS(Employees)
 
-Using `ALL()` or `REMOVEFILTERS()` does not help — RLS filters are applied at the VertiPaq engine level before DAX evaluation.
+-- ALL() and REMOVEFILTERS() do NOT fix this
+-- RLS is applied at VertiPaq engine level BEFORE DAX evaluation
+```
 
 ### Solution — Disconnected Calculated Table
 
@@ -207,7 +291,7 @@ SUMMARIZE(
 `SUMMARIZE(ALL(Employees))` captures a full snapshot at model load time — before RLS applies. Since `EmpCount` has no relationships, RLS never propagates to it.
 
 ```dax
--- Correct KPI measures using disconnected table
+-- CORRECT — always returns org-wide totals regardless of role
 Total Headcount    = COUNTROWS(EmpCount)
 Active Employees   = CALCULATE(COUNTROWS(EmpCount), EmpCount[Status] = "Active")
 Avg Salary         = AVERAGE(EmpCount[Salary])
@@ -222,38 +306,33 @@ Total Salary Budget = SUM(EmpCount[Salary])
 - Dynamic welcome message using `My Name` measure
 - Role-aware navigation cards — HR and Executive cards hidden for Employee role
 - Blocking rectangle pattern to prevent unauthorized navigation
-- Footer: "Access is controlled by your role · RLS Active"
 
 ### Employee Tab
 - Profile cards: Name, Department, Job Title, Salary, Status, Manager
-- My Projects table (own projects only)
+- My Projects table (own projects only via USERPRINCIPALNAME())
 - My Promotions table (own promotions only)
-- All values filtered by `USERPRINCIPALNAME()`
 
 ### HR Tab
-- KPI cards: Total Headcount, Avg Salary, Active Employees (org-wide via EmpCount)
+- KPI cards using EmpCount (org-wide, bypasses RLS)
 - Team Directory table (Employee rows + own HR row)
-- Promotions table (all promotions)
 - Salary by Department bar chart
 
 ### CEO/CFO Tab
 - 4 KPI cards: Headcount, Salary Budget, Active Projects, Total Promotions
 - 3 bar charts: Headcount by Dept, Salary by Dept, Project Allocation %
-- Full Employee Directory with all columns
+- Full Employee Directory
 
 ---
 
-## Power BI App Configuration
+## Test Users
 
-### Audiences
-
-| Audience | Security Group | Pages Visible |
-|----------|---------------|---------------|
-| PBI_Employee | PBI_Employees | All (data restricted by RLS) |
-| PBI_HR | PBI_HR_Team | All (data restricted by RLS) |
-| PBI_Executive | PBI_Executives | All (full access) |
-
-> Note: Individual page hiding per audience requires Fabric capacity. In this implementation, page-level security is achieved through dynamic button visibility and blocking rectangles using DAX role detection measures.
+| User | Role | Expected behaviour |
+|---|---|---|
+| alice.johnson@pyrodemo... | CEO | All data, all pages, full KPIs |
+| robert.kim@pyrodemo... | CFO | All data, all pages, full KPIs |
+| sarah.patel@pyrodemo... | HR | Own row + all employee rows |
+| maria.garcia@pyrodemo... | Employee | Own row only |
+| lisa.wong@pyrodemo... | Employee | Own row only |
 
 ---
 
@@ -261,97 +340,60 @@ Total Salary Budget = SUM(EmpCount[Salary])
 
 ### Prerequisites
 - Power BI Desktop (April 2026 or later)
-- Microsoft 365 Business Standard or Power BI Pro license
+- Microsoft 365 Business Standard or Power BI Pro licence
 - Microsoft Entra ID tenant with Global Administrator access
+- Python 3.11+ (for embed layer)
 
-### Step 1 — Clone Repository
+### Power BI report
 ```bash
-git clone https://github.com/yourusername/PYRO-HR-Analytics.git
+git clone https://github.com/arpitaonnet/PYRO-HR-Analytics.git
 ```
-
-### Step 2 — Set Up Entra ID
-1. Create three Security Groups in Microsoft Entra ID:
-   - `PBI_Executives`
-   - `PBI_HR_Team`
-   - `PBI_Employees`
-2. Create test users and assign to groups
-3. Assign Power BI Pro licenses via M365 Admin Center
-
-### Step 3 — Update Email Domain
-Open `data/PYRO_Clean.xlsx` and update all email addresses in:
-- `Employees` sheet → Email column
-- `RLS_SecurityMapping` sheet → Email column
-
-Replace `pyrodemo.onmicrosoft.com` with your tenant domain.
-
-### Step 4 — Open Report
 1. Open `report/PYRO_RLS.pbix` in Power BI Desktop
-2. Go to **Home → Transform Data → Power Query**
-3. Update data source to point to your local `PYRO_Clean.xlsx`
-4. Apply **Transform → Format → Lowercase** on all Email columns
-5. Click **Close & Apply**
+2. Update data source to point to your local `PYRO_Clean.xlsx`
+3. Update email domain in `data/PYRO_Clean.xlsx` to match your tenant
+4. Apply theme from `theme/PYRO_Theme.json`
+5. Publish to your Power BI workspace
 
-### Step 5 — Apply Theme
-1. **View → Themes → Browse for themes**
-2. Select `theme/PYRO_Theme.json`
-
-### Step 6 — Publish
-1. **Home → Publish**
-2. Sign in with your admin account
-3. Select your workspace
-4. Go to **app.powerbi.com → Datasets → Security**
-5. Assign security groups to roles:
-   - `Role_CEO_CFO` → `PBI_Executives`
-   - `Role_HR` → `PBI_HR_Team`
-   - `Role_Employee` → `PBI_Employees`
-
-### Step 7 — Create App
-1. Workspace → **Create app**
-2. Configure 3 audiences with respective security groups
-3. Publish app and share link with users
-
-### Step 8 — Test
-Open an incognito browser and log in as each test user to verify RLS behaviour.
+### Embed layer
+```bash
+cd embed
+pip install -r requirements.txt
+cp .env.example .env
+# fill in AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET,
+# PBI_WORKSPACE_ID, PBI_REPORT_ID, PBI_USERNAME, PBI_PASSWORD
+python app.py
+```
+Open `http://localhost:5000`, select a user, click Load Report.
 
 ---
 
-## Test Users
+## Skills Demonstrated
 
-| User | Role | Expected Behaviour |
-|------|------|-------------------|
-| alice.johnson@ | CEO | Sees all data, all pages |
-| robert.kim@ | CFO | Sees all data, all pages |
-| sarah.patel@ | HR | Sees own row + all employee rows |
-| maria.garcia@ | Employee | Sees own row only |
-| lisa.wong@ | Employee | Sees own row only |
+- End-to-end Power BI development (requirements → embedded app)
+- Dynamic Row Level Security with `USERPRINCIPALNAME()`
+- Microsoft Entra ID group-based access control
+- Enterprise embed architecture — Flask backend + powerbi-client SDK
+- Server-side embed token generation with RLS identity assertion
+- OAuth 2.0 token flows — ROPC and client credentials
+- Azure AD app registration and API permissions
+- Star schema data modelling
+- Advanced DAX — SUMMARIZE, CALCULATE, USERPRINCIPALNAME, SELECTEDVALUE
+- RLS filter bleeding problem — disconnected table solution
+- Power BI App with audience-based access control
+- Production upgrade path documentation
 
 ---
 
 ## Certifications
 
 | Certification | Relevance |
-|---------------|-----------|
+|---|---|
 | PL-300 — Power BI Data Analyst | Core Power BI skills |
 | DP-600 — Microsoft Fabric Analytics Engineer | Fabric + advanced analytics |
 
 ---
 
-## Skills Demonstrated
-
-- End-to-end Power BI development (requirements → published app)
-- Dynamic Row Level Security with USERPRINCIPALNAME()
-- Microsoft Entra ID group-based access control
-- Star schema data modelling
-- Advanced DAX — SUMMARIZE, CALCULATE, USERPRINCIPALNAME, SELECTEDVALUE
-- RLS filter bleeding problem — disconnected table solution
-- Power BI App with audience-based access control
-- Custom theme development (JSON)
-- UI/UX design — navigation cards, conditional visibility, role-aware layout
-
-
----
-
-## License
+## Licence
 
 This project is for portfolio and educational purposes.
 
@@ -359,6 +401,6 @@ This project is for portfolio and educational purposes.
 
 ## Author
 
-**Your Name**
+**Arpita Ghosh**
 Power BI Developer · PL-300 · DP-600
-[LinkedIn](https://linkedin.com/in/yourprofile) · [GitHub](https://github.com/yourusername)
+[LinkedIn](https://linkedin.com/in/arpitaonnet) · [GitHub](https://github.com/arpitaonnet)
